@@ -1,0 +1,7 @@
+allowBuilds:
+  '@scarf/scarf': false
+  unrs-resolver: true
+
+packages:
+  - 'backend'
+  - 'frontend'

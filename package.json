@@ -1,0 +1,11 @@
+{
+  "name": "fx_simulator-monorepo",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter @fx_simulator/backend start:dev",
+    "dev:frontend": "pnpm --filter @fx_simulator/frontend dev",
+    "generate:api": "pnpm --filter @fx_simulator/frontend run generate:api",
+    "build:backend": "pnpm --filter @fx_simulator/backend build",
+    "build:frontend": "pnpm --filter @fx_simulator/frontend build"
+  }
+}

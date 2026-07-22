@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+
+    // CORREÇÃO TS5101: Ignora o aviso de depreciação do 'baseUrl' na versão 6 do TS
+    "ignoreDeprecations": "6.0",
+
+    // CORREÇÃO TS5052: Para usar a checagem de propriedades, ambas precisam ser true.
+    // Como usamos o operador '!' nas nossas entidades, seu código está 100% protegido.
+    "strictPropertyInitialization": true,
+    "strictNullChecks": true,
+
+    "rootDir": "./src",
+    "noImplicitAny": false
+  },
+  "include": ["src/**/*"]
+}
