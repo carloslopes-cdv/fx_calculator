@@ -7,6 +7,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Trade } from '../../trades/entities/trade.entity';
+import { NumericColumnTransformer } from '../../database/transformers/numeric.transformer';
 
 @Entity('hedges')
 export class Hedge {
@@ -20,13 +21,20 @@ export class Hedge {
   @JoinColumn({ name: 'trade_id' })
   trade!: Trade;
 
-  @Column({ type: 'numeric', precision: 18, scale: 4, nullable: false })
+  @Column({
+    type: 'numeric',
+    precision: 15,
+    scale: 4,
+    transformer: new NumericColumnTransformer(),
+    nullable: false,
+  })
   volume!: number;
 
   @Column({
     type: 'numeric',
-    precision: 12,
-    scale: 6,
+    precision: 10,
+    scale: 4,
+    transformer: new NumericColumnTransformer(),
     name: 'entry_rate',
     nullable: false,
   })

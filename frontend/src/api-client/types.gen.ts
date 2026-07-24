@@ -80,6 +80,21 @@ export type UpdateTradeDto = {
     tradeDate?: string;
 };
 
+export type RiskSuggestedActionDto = {
+    /**
+     * Ação Recomendada
+     */
+    action: 'BUY' | 'SELL' | 'HOLD';
+    /**
+     * Moeda alvo da ação
+     */
+    targetCurrency: string;
+    /**
+     * Volume financeiro sugerido
+     */
+    amount: number;
+};
+
 export type TradeRiskDetailDto = {
     /**
      * UUID do Trade
@@ -145,13 +160,17 @@ export type RiskReportResponseDto = {
      */
     overallHedgeRatioPercent: number;
     /**
+     * Exposição Total da Carteira
+     */
+    netExposure: number;
+    /**
      * Classificação da saúde financeira do Book
      */
     healthStatus: 'HEALTHY' | 'WARNING' | 'CRITICAL';
     /**
-     * Orientação automática do Motor de Risco
+     * Objeto com a ação corretiva sugerida pelo Motor de Risco (estruturado)
      */
-    suggestedAction: string;
+    suggestedAction?: RiskSuggestedActionDto;
     /**
      * PnL consolidado não realizado da carteira
      */
@@ -208,7 +227,7 @@ export type BooksControllerFindAllData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/books';
+    url: '/api/books';
 };
 
 export type BooksControllerFindAllResponses = {
@@ -224,7 +243,7 @@ export type BooksControllerCreateData = {
     body: CreateBookDto;
     path?: never;
     query?: never;
-    url: '/books';
+    url: '/api/books';
 };
 
 export type BooksControllerCreateResponses = {
@@ -245,7 +264,7 @@ export type BooksControllerRemoveData = {
         id: string;
     };
     query?: never;
-    url: '/books/{id}';
+    url: '/api/books/{id}';
 };
 
 export type BooksControllerRemoveResponses = {
@@ -264,7 +283,7 @@ export type BooksControllerFindOneData = {
         id: string;
     };
     query?: never;
-    url: '/books/{id}';
+    url: '/api/books/{id}';
 };
 
 export type BooksControllerFindOneErrors = {
@@ -292,7 +311,7 @@ export type BooksControllerUpdateData = {
         id: string;
     };
     query?: never;
-    url: '/books/{id}';
+    url: '/api/books/{id}';
 };
 
 export type BooksControllerUpdateResponses = {
@@ -308,7 +327,7 @@ export type TradesControllerFindAllData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/trades';
+    url: '/api/trades';
 };
 
 export type TradesControllerFindAllResponses = {
@@ -324,7 +343,7 @@ export type TradesControllerCreateData = {
     body: CreateTradeDto;
     path?: never;
     query?: never;
-    url: '/trades';
+    url: '/api/trades';
 };
 
 export type TradesControllerCreateResponses = {
@@ -345,7 +364,7 @@ export type TradesControllerRemoveData = {
         id: string;
     };
     query?: never;
-    url: '/trades/{id}';
+    url: '/api/trades/{id}';
 };
 
 export type TradesControllerRemoveResponses = {
@@ -364,7 +383,7 @@ export type TradesControllerFindOneData = {
         id: string;
     };
     query?: never;
-    url: '/trades/{id}';
+    url: '/api/trades/{id}';
 };
 
 export type TradesControllerFindOneResponses = {
@@ -385,7 +404,7 @@ export type TradesControllerUpdateData = {
         id: string;
     };
     query?: never;
-    url: '/trades/{id}';
+    url: '/api/trades/{id}';
 };
 
 export type TradesControllerUpdateErrors = {
@@ -422,7 +441,7 @@ export type RiskControllerGetBookRiskReportData = {
          */
         eurbrl?: string;
     };
-    url: '/risk/books/{bookId}';
+    url: '/api/risk/books/{bookId}';
 };
 
 export type RiskControllerGetBookRiskReportResponses = {
@@ -438,7 +457,7 @@ export type HedgesControllerFindAllData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/hedges';
+    url: '/api/hedges';
 };
 
 export type HedgesControllerFindAllResponses = {
@@ -454,7 +473,7 @@ export type HedgesControllerCreateData = {
     body: CreateHedgeDto;
     path?: never;
     query?: never;
-    url: '/hedges';
+    url: '/api/hedges';
 };
 
 export type HedgesControllerCreateErrors = {
@@ -482,7 +501,7 @@ export type HedgesControllerRemoveData = {
         id: string;
     };
     query?: never;
-    url: '/hedges/{id}';
+    url: '/api/hedges/{id}';
 };
 
 export type HedgesControllerRemoveResponses = {
@@ -501,7 +520,7 @@ export type HedgesControllerFindOneData = {
         id: string;
     };
     query?: never;
-    url: '/hedges/{id}';
+    url: '/api/hedges/{id}';
 };
 
 export type HedgesControllerFindOneResponses = {
@@ -522,7 +541,7 @@ export type HedgesControllerUpdateData = {
         id: string;
     };
     query?: never;
-    url: '/hedges/{id}';
+    url: '/api/hedges/{id}';
 };
 
 export type HedgesControllerUpdateResponses = {

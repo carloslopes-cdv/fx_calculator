@@ -14,12 +14,13 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ShieldIcon from "@mui/icons-material/Shield";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-// 1. Imports de utilitários e clientes
 import { client } from "@/utils/api";
 import { formatCurrency } from "@/utils/formatters";
 
-// 2. Componentes visuais
+import type { Book, Trade, RiskReportResponseDto } from "@/api-client";
+
 import { FormattedCurrency } from "@/components/atoms/FormattedCurrency";
 import { MetricCard } from "@/components/molecules/MetricCard";
 import { FxRateSimulatorBar } from "@/components/molecules/FxRateSimulatorBar";
@@ -37,79 +38,38 @@ import {
   CreateHedgeFormData,
 } from "@/components/organisms/HedgeFormModal";
 
-interface BookData {
-  id: string;
-  name: string;
-}
-
-interface RiskReportData {
-  totalTradeVolume?: number | string;
-  totalExposedVolume?: number | string;
-  totalHedgeVolume?: number | string;
-  totalHedgedVolume?: number | string;
-  totalUnrealizedPnL?: number | string;
-  totalUnrealizedPnl?: number | string;
-  coverageRatio?: number | string;
-  overallHedgeRatioPercent?: number | string;
-  health?: "HEALTHY" | "WARNING" | "CRITICAL" | string;
-  healthStatus?: "HEALTHY" | "WARNING" | "CRITICAL" | string;
-  currentFxRate?: number | string;
-  tradesDetails?: Array<{ marketRate?: number | string }>;
-  suggestedAction?:
-    { action: string; targetCurrency: string; amount: number } | string | null;
-  suggestedAmount?: number | string;
-  [key: string]: unknown;
-}
-
-interface TradeResponseItem {
-  id?: string | number;
-  side?: string;
-  currencyPair?: string;
-  volume?: number | string;
-  entryRate?: number | string;
-  unrealizedPnL?: number | string;
-  tradeDate?: string;
-  createdAt?: string;
-  hedgedVolume?: number | string;
-  [key: string]: unknown;
-}
-
 export default function DashboardPage() {
-  // --- ESTADOS DA APLICAÇÃO ---
   const [loading, setLoading] = useState<boolean>(true);
   const [simulating, setSimulating] = useState<boolean>(false);
   const [currentBookId, setCurrentBookId] = useState<string>("");
 
-  // Cotação e Simulação
   const [currentFxRate, setCurrentFxRate] = useState<number>(5.2);
   const [simulatedRate, setSimulatedRate] = useState<number | undefined>(
     undefined,
   );
 
-  // Métricas do Motor de Risco
   const [metrics, setMetrics] = useState({
     totalVolume: 0,
     hedgedVolume: 0,
+    netExposure: 0,
     unrealizedPnL: 0,
     coverageRatio: 0,
     health: "HEALTHY" as "HEALTHY" | "WARNING" | "CRITICAL",
   });
 
   const [suggestedAction, setSuggestedAction] = useState<{
-    action: "BUY" | "SELL" | string;
+    action: "BUY" | "SELL" | "HOLD" | string;
     targetCurrency: string;
     amount: number;
   } | null>(null);
 
   const [trades, setTrades] = useState<TradeItem[]>([]);
 
-  // Modais de Ação
   const [isTradeModalOpen, setIsTradeModalOpen] = useState<boolean>(false);
   const [isHedgeModalOpen, setIsHedgeModalOpen] = useState<boolean>(false);
   const [selectedTradeForHedge, setSelectedTradeForHedge] =
     useState<TradeItem | null>(null);
 
-  // Toast Notifications
   const [toast, setToast] = useState<{
     open: boolean;
     message: string;
@@ -127,130 +87,99 @@ export default function DashboardPage() {
     [],
   );
 
-  // --- CARREGAMENTO DE DADOS DA API ---
   const fetchDashboardData = useCallback(
     async (rateOverride?: number) => {
       setLoading(true);
       try {
-        // A. Busca ou Cria Carteira (Book)
+        // A. Busca ou Cria Carteira (Tipado como Book[])
         const booksResponse = await client.get({ url: "/api/books" });
-        const booksList = booksResponse.data as BookData[] | undefined;
-        let book = Array.isArray(booksList) ? booksList[0] : undefined;
+        const booksList = (booksResponse.data as Book[]) || [];
+        let book = booksList[0];
 
         if (!book) {
           const newBook = await client.post({
             url: "/api/books",
             body: { name: "Carteira Principal de Tesouraria" },
           });
-          book = newBook.data as BookData;
+          book = newBook.data as Book;
         }
 
-        if (book?.id) {
-          setCurrentBookId(book.id);
+        const bookId = (book as Record<string, unknown>)?.id as
+          string | undefined;
 
-          // B. Consulta o Relatório de Risco (com parâmetro de simulação)
-          const riskUrl = rateOverride
-            ? `/api/risk/report/${book.id}?usdbrl=${rateOverride}`
-            : `/api/risk/report/${book.id}`;
+        if (bookId) {
+          setCurrentBookId(bookId);
+
+          // B. Consulta o Relatório de Risco
+          const riskUrl = `/api/risk/books/${bookId}`;
 
           const riskResponse = await client.get({
             url: riskUrl,
             query: rateOverride ? { usdbrl: rateOverride } : undefined,
           });
 
-          const rawRisk = riskResponse.data as RiskReportData | undefined;
+          const riskData = riskResponse.data as RiskReportResponseDto;
 
-          if (rawRisk) {
-            // FIX: Leitura defensiva que suporta ambas as nomenclaturas do NestJS
-            const totalVol = Number(
-              rawRisk.totalTradeVolume ?? rawRisk.totalExposedVolume ?? 0,
-            );
-            const hedgedVol = Number(
-              rawRisk.totalHedgeVolume ?? rawRisk.totalHedgedVolume ?? 0,
-            );
-            const pnl = Number(
-              rawRisk.totalUnrealizedPnL ?? rawRisk.totalUnrealizedPnl ?? 0,
-            );
-            const ratio = Number(
-              rawRisk.coverageRatio ?? rawRisk.overallHedgeRatioPercent ?? 0,
-            );
-            const healthStatus =
-              rawRisk.health ?? rawRisk.healthStatus ?? "HEALTHY";
-
+          if (riskData) {
             setMetrics({
-              totalVolume: totalVol,
-              hedgedVolume: hedgedVol,
-              unrealizedPnL: pnl,
-              coverageRatio: ratio,
-              health: healthStatus as "HEALTHY" | "WARNING" | "CRITICAL",
+              totalVolume: riskData.totalExposedVolume, // (No backend isso é o Vol. Bruto)
+              hedgedVolume: riskData.totalHedgedVolume,
+              netExposure: riskData.netExposure || 0, // <-- LENDO A MÉTRICA NOVA DO BACKEND
+              unrealizedPnL: riskData.totalUnrealizedPnl,
+              coverageRatio: riskData.overallHedgeRatioPercent,
+              health: riskData.healthStatus,
             });
 
-            // Define cotação ativa
             const activeRate =
-              rateOverride ||
-              Number(rawRisk.currentFxRate) ||
-              Number(rawRisk.tradesDetails?.[0]?.marketRate) ||
-              5.2;
-
+              rateOverride || riskData.tradesDetails?.[0]?.marketRate || 5.2;
             setCurrentFxRate(activeRate);
 
-            // Ação sugerida
-            if (rawRisk.suggestedAction) {
-              if (typeof rawRisk.suggestedAction === "object") {
-                setSuggestedAction(rawRisk.suggestedAction);
-              } else {
-                setSuggestedAction({
-                  action: healthStatus === "CRITICAL" ? "BUY" : "HOLD",
-                  targetCurrency: "USD",
-                  amount: Number(rawRisk.suggestedAmount || 0),
-                });
-              }
-            } else {
-              setSuggestedAction(null);
-            }
+            setSuggestedAction(riskData.suggestedAction || null);
           }
 
-          // C. Busca Operações (Trades)
-          const tradesResponse = await client.get({
-            url: `/api/trades`,
-          });
-
-          const tradesList = Array.isArray(tradesResponse.data)
-            ? tradesResponse.data
-            : (tradesResponse.data as { trades?: unknown[] })?.trades || [];
+          // C. Busca Operações (Tipado como Trade[])
+          const tradesResponse = await client.get({ url: "/api/trades" });
+          const tradesList = (tradesResponse.data as Trade[]) || [];
 
           if (Array.isArray(tradesList)) {
             const activeRate = rateOverride || currentFxRate || 5.2;
 
-            const mappedTrades: TradeItem[] = tradesList.map(
-              (t: TradeResponseItem) => {
-                const volume = Number(t.volume || 0);
-                const entryRate = Number(t.entryRate || 0);
+            const mappedTrades: TradeItem[] = tradesList.map((t) => {
+              // Cast seguro para acessar as propriedades sem usar 'any'
+              const tradeObj = t as Record<string, unknown>;
+              const volume = Number(tradeObj.volume || 0);
+              const entryRate = Number(tradeObj.entryRate || 0);
 
-                // Cálculo dinâmico de PnL para a tabela
-                let calculatedPnL = Number(t.unrealizedPnL || 0);
-                if (!calculatedPnL && volume > 0) {
-                  calculatedPnL =
-                    t.side === "BUY"
-                      ? (activeRate - entryRate) * volume
-                      : (entryRate - activeRate) * volume;
-                }
+              let calculatedPnL = Number(tradeObj.unrealizedPnL || 0);
+              if (!calculatedPnL && volume > 0) {
+                calculatedPnL =
+                  tradeObj.side === "BUY"
+                    ? (activeRate - entryRate) * volume
+                    : (entryRate - activeRate) * volume;
+              }
 
-                return {
-                  id: String(t.id),
-                  side: t.side || "BUY",
-                  currencyPair: t.currencyPair || "USDBRL",
-                  volume,
-                  entryRate,
-                  currentRate: activeRate,
-                  unrealizedPnL: calculatedPnL,
-                  tradeDate: String(
-                    t.tradeDate || t.createdAt || new Date().toISOString(),
-                  ),
-                  hedgedVolume: Number(t.hedgedVolume || 0),
-                };
-              },
-            );
+              // Trata o volume do array de hedges
+              const hedgesArray =
+                (tradeObj.hedges as Record<string, unknown>[]) || [];
+              const hedgedVolume = hedgesArray.reduce(
+                (sum, h) => sum + Number(h.volume || 0),
+                0,
+              );
+
+              return {
+                id: String(tradeObj.id || ""),
+                side: (tradeObj.side as "BUY" | "SELL") || "BUY",
+                currencyPair: String(tradeObj.currencyPair || "USDBRL"),
+                volume,
+                entryRate,
+                currentRate: activeRate,
+                unrealizedPnL: calculatedPnL,
+                tradeDate: String(
+                  tradeObj.tradeDate || tradeObj.createdAt || "",
+                ),
+                hedgedVolume,
+              };
+            });
 
             setTrades(mappedTrades);
           }
@@ -391,15 +320,15 @@ export default function DashboardPage() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", md: "repeat(4, 1fr)" }, // <-- Mudou para 4 colunas
           gap: 2.5,
           mb: 3,
         }}
       >
         <MetricCard
-          title="Volume Exposto Total"
+          title="Volume Bruto Total"
           value={formatCurrency(metrics.totalVolume, "USD")}
-          subtitle="Soma do volume das operações abertas"
+          subtitle="Soma de todas as operações abertas"
           icon={<AccountBalanceWalletIcon />}
           loading={loading}
         />
@@ -410,6 +339,16 @@ export default function DashboardPage() {
           icon={<ShieldIcon />}
           loading={loading}
         />
+
+        {/* NOVO CARD: Exposição Líquida */}
+        <MetricCard
+          title="Exposição Líquida (Risco)"
+          value={formatCurrency(metrics.netExposure, "USD")}
+          subtitle="Volume desprotegido a mercado"
+          icon={<WarningAmberIcon color="warning" />}
+          loading={loading}
+        />
+
         <MetricCard
           title="Marcação a Mercado (MtM / PnL)"
           value={
@@ -429,7 +368,6 @@ export default function DashboardPage() {
           loading={loading}
         />
       </Box>
-
       {/* 4. RELATÓRIO DO MOTOR DE RISCO (SEMÁFORO) */}
       <Box sx={{ mb: 3 }}>
         <RiskReportCard

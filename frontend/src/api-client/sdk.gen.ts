@@ -21,13 +21,13 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Listar todas as carteiras
  */
-export const booksControllerFindAll = <ThrowOnError extends boolean = false>(options?: Options<BooksControllerFindAllData, ThrowOnError>): RequestResult<BooksControllerFindAllResponses, unknown, ThrowOnError> => (options?.client ?? client).get<BooksControllerFindAllResponses, unknown, ThrowOnError>({ url: '/books', ...options });
+export const booksControllerFindAll = <ThrowOnError extends boolean = false>(options?: Options<BooksControllerFindAllData, ThrowOnError>): RequestResult<BooksControllerFindAllResponses, unknown, ThrowOnError> => (options?.client ?? client).get<BooksControllerFindAllResponses, unknown, ThrowOnError>({ url: '/api/books', ...options });
 
 /**
  * Criar uma nova carteira (Book)
  */
 export const booksControllerCreate = <ThrowOnError extends boolean = false>(options: Options<BooksControllerCreateData, ThrowOnError>): RequestResult<BooksControllerCreateResponses, unknown, ThrowOnError> => (options.client ?? client).post<BooksControllerCreateResponses, unknown, ThrowOnError>({
-    url: '/books',
+    url: '/api/books',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -38,18 +38,18 @@ export const booksControllerCreate = <ThrowOnError extends boolean = false>(opti
 /**
  * Deletar uma carteira
  */
-export const booksControllerRemove = <ThrowOnError extends boolean = false>(options: Options<BooksControllerRemoveData, ThrowOnError>): RequestResult<BooksControllerRemoveResponses, unknown, ThrowOnError> => (options.client ?? client).delete<BooksControllerRemoveResponses, unknown, ThrowOnError>({ url: '/books/{id}', ...options });
+export const booksControllerRemove = <ThrowOnError extends boolean = false>(options: Options<BooksControllerRemoveData, ThrowOnError>): RequestResult<BooksControllerRemoveResponses, unknown, ThrowOnError> => (options.client ?? client).delete<BooksControllerRemoveResponses, unknown, ThrowOnError>({ url: '/api/books/{id}', ...options });
 
 /**
  * Buscar carteira por ID
  */
-export const booksControllerFindOne = <ThrowOnError extends boolean = false>(options: Options<BooksControllerFindOneData, ThrowOnError>): RequestResult<BooksControllerFindOneResponses, BooksControllerFindOneErrors, ThrowOnError> => (options.client ?? client).get<BooksControllerFindOneResponses, BooksControllerFindOneErrors, ThrowOnError>({ url: '/books/{id}', ...options });
+export const booksControllerFindOne = <ThrowOnError extends boolean = false>(options: Options<BooksControllerFindOneData, ThrowOnError>): RequestResult<BooksControllerFindOneResponses, BooksControllerFindOneErrors, ThrowOnError> => (options.client ?? client).get<BooksControllerFindOneResponses, BooksControllerFindOneErrors, ThrowOnError>({ url: '/api/books/{id}', ...options });
 
 /**
  * Atualizar dados de uma carteira
  */
 export const booksControllerUpdate = <ThrowOnError extends boolean = false>(options: Options<BooksControllerUpdateData, ThrowOnError>): RequestResult<BooksControllerUpdateResponses, unknown, ThrowOnError> => (options.client ?? client).patch<BooksControllerUpdateResponses, unknown, ThrowOnError>({
-    url: '/books/{id}',
+    url: '/api/books/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -60,13 +60,13 @@ export const booksControllerUpdate = <ThrowOnError extends boolean = false>(opti
 /**
  * Listar todas as operações
  */
-export const tradesControllerFindAll = <ThrowOnError extends boolean = false>(options?: Options<TradesControllerFindAllData, ThrowOnError>): RequestResult<TradesControllerFindAllResponses, unknown, ThrowOnError> => (options?.client ?? client).get<TradesControllerFindAllResponses, unknown, ThrowOnError>({ url: '/trades', ...options });
+export const tradesControllerFindAll = <ThrowOnError extends boolean = false>(options?: Options<TradesControllerFindAllData, ThrowOnError>): RequestResult<TradesControllerFindAllResponses, unknown, ThrowOnError> => (options?.client ?? client).get<TradesControllerFindAllResponses, unknown, ThrowOnError>({ url: '/api/trades', ...options });
 
 /**
  * Criar uma nova operação financeira (Trade)
  */
 export const tradesControllerCreate = <ThrowOnError extends boolean = false>(options: Options<TradesControllerCreateData, ThrowOnError>): RequestResult<TradesControllerCreateResponses, unknown, ThrowOnError> => (options.client ?? client).post<TradesControllerCreateResponses, unknown, ThrowOnError>({
-    url: '/trades',
+    url: '/api/trades',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -77,18 +77,18 @@ export const tradesControllerCreate = <ThrowOnError extends boolean = false>(opt
 /**
  * Deletar um trade e seus hedges associados
  */
-export const tradesControllerRemove = <ThrowOnError extends boolean = false>(options: Options<TradesControllerRemoveData, ThrowOnError>): RequestResult<TradesControllerRemoveResponses, unknown, ThrowOnError> => (options.client ?? client).delete<TradesControllerRemoveResponses, unknown, ThrowOnError>({ url: '/trades/{id}', ...options });
+export const tradesControllerRemove = <ThrowOnError extends boolean = false>(options: Options<TradesControllerRemoveData, ThrowOnError>): RequestResult<TradesControllerRemoveResponses, unknown, ThrowOnError> => (options.client ?? client).delete<TradesControllerRemoveResponses, unknown, ThrowOnError>({ url: '/api/trades/{id}', ...options });
 
 /**
  * Buscar trade por ID
  */
-export const tradesControllerFindOne = <ThrowOnError extends boolean = false>(options: Options<TradesControllerFindOneData, ThrowOnError>): RequestResult<TradesControllerFindOneResponses, unknown, ThrowOnError> => (options.client ?? client).get<TradesControllerFindOneResponses, unknown, ThrowOnError>({ url: '/trades/{id}', ...options });
+export const tradesControllerFindOne = <ThrowOnError extends boolean = false>(options: Options<TradesControllerFindOneData, ThrowOnError>): RequestResult<TradesControllerFindOneResponses, unknown, ThrowOnError> => (options.client ?? client).get<TradesControllerFindOneResponses, unknown, ThrowOnError>({ url: '/api/trades/{id}', ...options });
 
 /**
  * Atualizar um trade com validação de limite
  */
 export const tradesControllerUpdate = <ThrowOnError extends boolean = false>(options: Options<TradesControllerUpdateData, ThrowOnError>): RequestResult<TradesControllerUpdateResponses, TradesControllerUpdateErrors, ThrowOnError> => (options.client ?? client).patch<TradesControllerUpdateResponses, TradesControllerUpdateErrors, ThrowOnError>({
-    url: '/trades/{id}',
+    url: '/api/trades/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -99,18 +99,18 @@ export const tradesControllerUpdate = <ThrowOnError extends boolean = false>(opt
 /**
  * Gerar Relatório de Risco, Alertas de Saúde e Mark-to-Market (MtM) em tempo real
  */
-export const riskControllerGetBookRiskReport = <ThrowOnError extends boolean = false>(options: Options<RiskControllerGetBookRiskReportData, ThrowOnError>): RequestResult<RiskControllerGetBookRiskReportResponses, unknown, ThrowOnError> => (options.client ?? client).get<RiskControllerGetBookRiskReportResponses, unknown, ThrowOnError>({ url: '/risk/books/{bookId}', ...options });
+export const riskControllerGetBookRiskReport = <ThrowOnError extends boolean = false>(options: Options<RiskControllerGetBookRiskReportData, ThrowOnError>): RequestResult<RiskControllerGetBookRiskReportResponses, unknown, ThrowOnError> => (options.client ?? client).get<RiskControllerGetBookRiskReportResponses, unknown, ThrowOnError>({ url: '/api/risk/books/{bookId}', ...options });
 
 /**
  * Listar todas as proteções (Hedges)
  */
-export const hedgesControllerFindAll = <ThrowOnError extends boolean = false>(options?: Options<HedgesControllerFindAllData, ThrowOnError>): RequestResult<HedgesControllerFindAllResponses, unknown, ThrowOnError> => (options?.client ?? client).get<HedgesControllerFindAllResponses, unknown, ThrowOnError>({ url: '/hedges', ...options });
+export const hedgesControllerFindAll = <ThrowOnError extends boolean = false>(options?: Options<HedgesControllerFindAllData, ThrowOnError>): RequestResult<HedgesControllerFindAllResponses, unknown, ThrowOnError> => (options?.client ?? client).get<HedgesControllerFindAllResponses, unknown, ThrowOnError>({ url: '/api/hedges', ...options });
 
 /**
  * Criar uma nova proteção (Hedge) com validação Anti-Overhedging
  */
 export const hedgesControllerCreate = <ThrowOnError extends boolean = false>(options: Options<HedgesControllerCreateData, ThrowOnError>): RequestResult<HedgesControllerCreateResponses, HedgesControllerCreateErrors, ThrowOnError> => (options.client ?? client).post<HedgesControllerCreateResponses, HedgesControllerCreateErrors, ThrowOnError>({
-    url: '/hedges',
+    url: '/api/hedges',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -121,18 +121,18 @@ export const hedgesControllerCreate = <ThrowOnError extends boolean = false>(opt
 /**
  * Deletar um hedge
  */
-export const hedgesControllerRemove = <ThrowOnError extends boolean = false>(options: Options<HedgesControllerRemoveData, ThrowOnError>): RequestResult<HedgesControllerRemoveResponses, unknown, ThrowOnError> => (options.client ?? client).delete<HedgesControllerRemoveResponses, unknown, ThrowOnError>({ url: '/hedges/{id}', ...options });
+export const hedgesControllerRemove = <ThrowOnError extends boolean = false>(options: Options<HedgesControllerRemoveData, ThrowOnError>): RequestResult<HedgesControllerRemoveResponses, unknown, ThrowOnError> => (options.client ?? client).delete<HedgesControllerRemoveResponses, unknown, ThrowOnError>({ url: '/api/hedges/{id}', ...options });
 
 /**
  * Buscar hedge por ID
  */
-export const hedgesControllerFindOne = <ThrowOnError extends boolean = false>(options: Options<HedgesControllerFindOneData, ThrowOnError>): RequestResult<HedgesControllerFindOneResponses, unknown, ThrowOnError> => (options.client ?? client).get<HedgesControllerFindOneResponses, unknown, ThrowOnError>({ url: '/hedges/{id}', ...options });
+export const hedgesControllerFindOne = <ThrowOnError extends boolean = false>(options: Options<HedgesControllerFindOneData, ThrowOnError>): RequestResult<HedgesControllerFindOneResponses, unknown, ThrowOnError> => (options.client ?? client).get<HedgesControllerFindOneResponses, unknown, ThrowOnError>({ url: '/api/hedges/{id}', ...options });
 
 /**
  * Atualizar um hedge com revalidação de Anti-Overhedging
  */
 export const hedgesControllerUpdate = <ThrowOnError extends boolean = false>(options: Options<HedgesControllerUpdateData, ThrowOnError>): RequestResult<HedgesControllerUpdateResponses, unknown, ThrowOnError> => (options.client ?? client).patch<HedgesControllerUpdateResponses, unknown, ThrowOnError>({
-    url: '/hedges/{id}',
+    url: '/api/hedges/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',

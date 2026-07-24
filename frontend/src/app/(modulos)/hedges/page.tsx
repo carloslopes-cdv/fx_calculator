@@ -15,63 +15,64 @@ import {
   Chip,
 } from "@mui/material";
 import ShieldIcon from "@mui/icons-material/Shield";
+
 import { client } from "@/utils/api";
 import { formatCurrency, formatFxRate, formatDate } from "@/utils/formatters";
+import type { Hedge } from "@/api-client";
 
-interface HedgeItem {
+type MappedHedge = {
   id: string;
-  tradeId: string;
+  tradeDesc: string; // <-- Trocamos tradeId por uma descrição palpável
   volume: number;
   entryRate: number;
   hedgeDate: string;
-}
-
-// Função auxiliar segura para truncar IDs de forma garantida
-const safeSlice = (val: unknown, length = 8): string => {
-  if (typeof val === "string" && val.length > 0) {
-    return val.slice(0, length);
-  }
-  if (typeof val === "number") {
-    return String(val).slice(0, length);
-  }
-  return "N/A";
 };
 
 export default function HedgesPage() {
-  const [hedges, setHedges] = useState<HedgeItem[]>([]);
+  const [hedges, setHedges] = useState<MappedHedge[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchHedges = async () => {
       try {
         const res = await client.get({ url: "/api/hedges" });
-        if (res.data && Array.isArray(res.data)) {
-          type HedgeResponse = {
-            id?: string | number;
-            tradeId?: string | number;
-            trade?: { id?: string | number };
-            volume?: number | string;
-            entryRate?: number | string;
-            hedgeDate?: string;
-          };
+        const hedgesList = (res.data as Hedge[]) || [];
 
-          const mapped: HedgeItem[] = res.data.map((h: HedgeResponse) => ({
-            id: String(h?.id || ""),
-            // Aceita h.tradeId ou h.trade?.id (se vier objeto aninhado do NestJS)
-            tradeId: String(h?.tradeId || h?.trade?.id || ""),
-            volume: Number(h?.volume || 0),
-            entryRate: Number(h?.entryRate || 0),
-            hedgeDate: h?.hedgeDate || new Date().toISOString(),
-          }));
-          setHedges(mapped);
-        }
+        const mapped: MappedHedge[] = hedgesList.map((h) => {
+          const obj = h as Record<string, unknown>;
+          const tradeObj = (obj.trade as Record<string, unknown>) || {};
+
+          // Montando uma descrição amigável para o Trade Pai
+          const side =
+            tradeObj.side === "BUY"
+              ? "Compra"
+              : tradeObj.side === "SELL"
+                ? "Venda"
+                : "";
+          const pair = tradeObj.currencyPair || "";
+          const tradeDesc =
+            side && pair
+              ? `Boleta de ${side} ${pair}`
+              : `Operação Desconhecida`;
+
+          return {
+            id: String(obj.id || ""),
+            tradeDesc,
+            volume: (obj.volume as number) || 0,
+            entryRate: (obj.entryRate as number) || 0,
+            hedgeDate: String(obj.hedgeDate || new Date().toISOString()),
+          };
+        });
+
+        setHedges(mapped);
       } catch (err) {
         console.error("Erro ao carregar Hedges:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchHedges();
+
+    void fetchHedges();
   }, []);
 
   return (
@@ -93,41 +94,41 @@ export default function HedgesPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>ID do Hedge</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>ID do Trade Pai</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Volume Coberto</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Taxa da Trava</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Data do Hedge</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Atrelado a</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Volume Coberto</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>
+                  Taxa da Trava (NDF)
+                </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={5} align="center">
                     Carregando proteções...
                   </TableCell>
                 </TableRow>
               ) : hedges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={5} align="center">
                     Nenhum Hedge registrado até o momento.
                   </TableCell>
                 </TableRow>
               ) : (
-                hedges.map((h, index) => (
-                  <TableRow key={h.id || index} hover>
-                    <TableCell sx={{ fontFamily: "monospace" }}>
-                      #{safeSlice(h.id)}
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: "monospace" }}>
-                      #{safeSlice(h.tradeId)}
+                hedges.map((h) => (
+                  <TableRow key={h.id} hover>
+                    <TableCell>{formatDate(h.hedgeDate)}</TableCell>
+                    <TableCell
+                      sx={{ fontWeight: 500, color: "text.secondary" }}
+                    >
+                      {h.tradeDesc}
                     </TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>
                       {formatCurrency(h.volume, "USD")}
                     </TableCell>
                     <TableCell>R$ {formatFxRate(h.entryRate)}</TableCell>
-                    <TableCell>{formatDate(h.hedgeDate)}</TableCell>
                     <TableCell>
                       <Chip
                         icon={<ShieldIcon />}

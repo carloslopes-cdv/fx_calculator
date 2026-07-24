@@ -24,14 +24,10 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import { client } from "@/utils/api";
 
-interface BookItem {
-  id: string;
-  name: string;
-  createdAt?: string;
-}
+import type { Book } from "@/api-client";
 
 export default function BooksPage() {
-  const [books, setBooks] = useState<BookItem[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [newBookName, setNewBookName] = useState<string>("");
@@ -45,9 +41,9 @@ export default function BooksPage() {
     setLoading(true);
     try {
       const response = await client.get({ url: "/api/books" });
-      if (response.data) {
-        setBooks(response.data as BookItem[]);
-      }
+
+      const data = (response.data as Book[]) || [];
+      setBooks(data);
     } catch {
       setToast({
         open: true,
@@ -149,19 +145,28 @@ export default function BooksPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                books.map((b) => (
-                  <TableRow key={b.id} hover>
-                    <TableCell sx={{ fontFamily: "monospace" }}>
-                      #{b.id.slice(0, 8)}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{b.name}</TableCell>
-                    <TableCell color="text.secondary">
-                      {b.createdAt
-                        ? new Date(b.createdAt).toLocaleDateString("pt-BR")
-                        : "---"}
-                    </TableCell>
-                  </TableRow>
-                ))
+                books.map((b) => {
+                  // 1. Extraímos as chaves garantindo os tipos primitivos
+                  const bookObj = b as Record<string, unknown>;
+                  const id = String(bookObj.id || "");
+                  const name = String(bookObj.name || "");
+                  const createdAt = bookObj.createdAt as string | undefined;
+
+                  // 2. Usamos as variáveis tratadas ('id', 'name', 'createdAt') no JSX
+                  return (
+                    <TableRow key={id} hover>
+                      <TableCell sx={{ fontFamily: "monospace" }}>
+                        #{id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{name}</TableCell>
+                      <TableCell color="text.secondary">
+                        {createdAt
+                          ? new Date(createdAt).toLocaleDateString("pt-BR")
+                          : "---"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

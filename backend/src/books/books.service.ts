@@ -5,6 +5,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 
+export interface BookSummary {
+  id: string;
+  name: string;
+  totalVolume: number;
+  hedgedVolume: number;
+  netExposure: number;
+  unrealizedPnL: number;
+}
+
 @Injectable()
 export class BooksService {
   constructor(
@@ -17,9 +26,45 @@ export class BooksService {
     return this.bookRepository.save(book);
   }
 
-  async findAll(): Promise<Book[]> {
-    return this.bookRepository.find({
+  async findAll(): Promise<BookSummary[]> {
+    const books = await this.bookRepository.find({
       relations: { trades: { hedges: true } },
+    });
+
+    return books.map((book): BookSummary => {
+      let totalVolume = 0;
+      let hedgedVolume = 0;
+      let unrealizedPnL = 0;
+
+      if (book.trades) {
+        book.trades.forEach((trade) => {
+          totalVolume += Number(trade.volume || 0);
+
+          if ('unrealizedPnL' in trade) {
+            unrealizedPnL += Number(
+              (trade as unknown as { unrealizedPnL: number }).unrealizedPnL ||
+                0,
+            );
+          }
+
+          if (trade.hedges) {
+            trade.hedges.forEach((hedge) => {
+              hedgedVolume += Number(hedge.volume || 0);
+            });
+          }
+        });
+      }
+
+      const netExposure = Math.max(0, totalVolume - hedgedVolume);
+
+      return {
+        id: book.id,
+        name: book.name,
+        totalVolume,
+        hedgedVolume,
+        netExposure,
+        unrealizedPnL,
+      };
     });
   }
 

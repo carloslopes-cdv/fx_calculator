@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Book } from '../../books/entities/book.entity';
 import { Hedge } from '../../hedges/entities/hedge.entity';
+import { NumericColumnTransformer } from '../../database/transformers/numeric.transformer';
 
 export type TradeSide = 'BUY' | 'SELL';
 
@@ -32,13 +33,20 @@ export class Trade {
   })
   currencyPair!: string;
 
-  @Column({ type: 'numeric', precision: 18, scale: 4, nullable: false })
+  @Column({
+    type: 'numeric',
+    precision: 15,
+    scale: 4,
+    transformer: new NumericColumnTransformer(),
+    nullable: false,
+  })
   volume!: number;
 
   @Column({
     type: 'numeric',
-    precision: 12,
-    scale: 6,
+    precision: 10,
+    scale: 4,
+    transformer: new NumericColumnTransformer(),
     name: 'entry_rate',
     nullable: false,
   })

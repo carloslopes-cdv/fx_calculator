@@ -15,6 +15,9 @@ export class Book {
   @Column({ type: 'varchar', length: 100, unique: true, nullable: false })
   name!: string;
 
+  @Column({ type: 'text', nullable: true })
+  description!: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

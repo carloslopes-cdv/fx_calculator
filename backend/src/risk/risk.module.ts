@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Book } from 'src/books/entities/book.entity';
-import { RiskController } from './risk..controller';
+import { RiskController } from './risk.controller';
 import { RiskService } from './risk.service';
 import { MarketDataService } from 'src/market-data/market-data.service';
 import { Trade } from 'src/trades/entities/trade.entity';

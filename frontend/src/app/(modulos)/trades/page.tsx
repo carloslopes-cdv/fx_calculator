@@ -1,261 +1,225 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Box,
   Typography,
-  Button,
-  MenuItem,
-  TextField,
-  Snackbar,
-  Alert,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  LinearProgress,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import { client } from "@/utils/api";
-import {
-  TradesDataGrid,
-  TradeItem,
-} from "@/components/organisms/TradesDataGrid";
-import {
-  TradeFormModal,
-  CreateTradeFormData,
-} from "@/components/organisms/TradeFormModal";
-import {
-  HedgeFormModal,
-  CreateHedgeFormData,
-} from "@/components/organisms/HedgeFormModal";
 
-interface BookOption {
+import { client } from "@/utils/api";
+import { formatCurrency, formatFxRate, formatDate } from "@/utils/formatters";
+import type { Trade } from "@/api-client";
+
+type MappedTrade = {
   id: string;
-  name: string;
-}
+  bookName: string;
+  side: "Compra" | "Venda"; // <-- Traduzido para o português
+  currencyPair: string;
+  volume: number;
+  entryRate: number;
+  tradeDate: string;
+  unrealizedPnL: number;
+  hedgedVolume: number;
+};
 
 export default function TradesPage() {
-  const [books, setBooks] = useState<BookOption[]>([]);
-  const [selectedBookId, setSelectedBookId] = useState<string>("");
-  const [trades, setTrades] = useState<TradeItem[]>([]);
+  const [trades, setTrades] = useState<MappedTrade[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Modais
-  const [isTradeModalOpen, setIsTradeModalOpen] = useState<boolean>(false);
-  const [isHedgeModalOpen, setIsHedgeModalOpen] = useState<boolean>(false);
-  const [selectedTradeForHedge, setSelectedTradeForHedge] =
-    useState<TradeItem | null>(null);
-
-  const [toast, setToast] = useState({
-    open: false,
-    message: "",
-    severity: "success" as "success" | "error",
-  });
-
-  // 1. Busca da lista de Books para o Select
-  const fetchBooks = useCallback(async () => {
-    try {
-      const res = await client.get({ url: "/api/books" });
-      const data = (res.data as BookOption[]) || [];
-      setBooks(data);
-    } catch (err) {
-      console.error("Erro ao buscar books:", err);
-    }
-  }, []);
-
-  // 2. Busca de Trades (por book selecionado ou TODOS)
-  const fetchTrades = useCallback(async (bookId?: string) => {
-    setLoading(true);
-    try {
-      // Se houver bookId, busca por book. Senão, busca a lista completa.
-      const url = bookId ? `/api/trades/book/${bookId}` : "/api/trades";
-      const res = await client.get({ url });
-
-      // Trata possíveis estruturas de retorno do NestJS
-      // Normalize response data safely without using `any`
-      const data = res.data as unknown;
-      let rawData: unknown[] = [];
-
-      if (Array.isArray(data)) {
-        rawData = data;
-      } else if (data && typeof data === "object") {
-        const obj = data as Record<string, unknown>;
-        if (Array.isArray(obj.trades)) rawData = obj.trades as unknown[];
-        else if (Array.isArray(obj.data)) rawData = obj.data as unknown[];
-      }
-
-      const toStr = (v: unknown, fallback = "") =>
-        v === null || v === undefined ? fallback : String(v);
-      const toNum = (v: unknown, fallback = 0) => {
-        if (typeof v === "number") return v;
-        if (typeof v === "string" && v.trim() !== "") return Number(v);
-        return fallback;
-      };
-
-      const mapped: TradeItem[] = rawData.map((t) => {
-        const obj =
-          t && typeof t === "object" ? (t as Record<string, unknown>) : {};
-
-        return {
-          id: toStr(obj.id, ""),
-          side: toStr(obj.side, "BUY") as TradeItem["side"],
-          currencyPair: toStr(obj.currencyPair, "USDBRL"),
-          volume: toNum(obj.volume, 0),
-          entryRate: toNum(obj.entryRate, 0),
-          unrealizedPnL: toNum(obj.unrealizedPnL, 0),
-          tradeDate: toStr(
-            obj.tradeDate,
-            toStr(obj.createdAt, new Date().toISOString()),
-          ),
-          hedgedVolume: toNum(obj.hedgedVolume, 0),
-        } as TradeItem;
-      });
-
-      setTrades(mapped);
-    } catch (err) {
-      console.error("Erro ao carregar trades:", err);
-      setToast({
-        open: true,
-        message: "Erro ao conectar com a API de Trades.",
-        severity: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Carga inicial
   useEffect(() => {
-    const loadInitialData = async () => {
-      await fetchBooks();
-      await fetchTrades();
+    const fetchTrades = async () => {
+      try {
+        const res = await client.get({ url: "/api/trades" });
+        const tradesList = (res.data as Trade[]) || [];
+
+        const mapped: MappedTrade[] = tradesList.map((t) => {
+          const obj = t as Record<string, unknown>;
+          const bookObj = (obj.book as Record<string, unknown>) || {};
+
+          const volume = (obj.volume as number) || 0;
+          const entryRate = (obj.entryRate as number) || 0;
+          const unrealizedPnL = (obj.unrealizedPnL as number) || 0;
+
+          const hedgesArray = (obj.hedges as Record<string, unknown>[]) || [];
+          const hedgedVolume = hedgesArray.reduce(
+            (sum, h) => sum + ((h.volume as number) || 0),
+            0,
+          );
+
+          return {
+            id: String(obj.id || ""),
+            bookName: String(bookObj.name || "Carteira não informada"),
+            // Mapeia o Side para português
+            side: obj.side === "SELL" ? "Venda" : "Compra",
+            currencyPair: String(obj.currencyPair || ""),
+            volume,
+            entryRate,
+            tradeDate: String(obj.tradeDate || new Date().toISOString()),
+            unrealizedPnL,
+            hedgedVolume,
+          };
+        });
+
+        setTrades(mapped);
+      } catch (err) {
+        console.error("Erro ao carregar trades:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    loadInitialData();
-  }, [fetchBooks, fetchTrades]);
-
-  // Handler para mudança no filtro de Book
-  const handleBookChange = (bookId: string) => {
-    setSelectedBookId(bookId);
-    fetchTrades(bookId);
-  };
-
-  const handleCreateTrade = async (data: CreateTradeFormData) => {
-    try {
-      await client.post({ url: "/api/trades", body: data });
-      setToast({
-        open: true,
-        message: "Trade registrado com sucesso!",
-        severity: "success",
-      });
-      fetchTrades(selectedBookId);
-    } catch {
-      setToast({
-        open: true,
-        message: "Erro ao registrar Trade.",
-        severity: "error",
-      });
-    }
-  };
-
-  const handleCreateHedge = async (data: CreateHedgeFormData) => {
-    try {
-      await client.post({ url: "/api/hedges", body: data });
-      setToast({
-        open: true,
-        message: "Hedge vinculado com sucesso!",
-        severity: "success",
-      });
-      fetchTrades(selectedBookId);
-    } catch {
-      setToast({
-        open: true,
-        message: "Erro ao vincular Hedge.",
-        severity: "error",
-      });
-    }
-  };
+    void fetchTrades();
+  }, []);
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-          flexWrap: "wrap",
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 800, color: "primary.light" }}
-          >
-            Operações Cambiais (Trades)
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Módulo de boletagem e acompanhamento das operações spot/derivatives
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <TextField
-            select
-            size="small"
-            label="Filtrar por Book"
-            value={selectedBookId}
-            onChange={(e) => handleBookChange(e.target.value)}
-            sx={{ width: 240 }}
-          >
-            <MenuItem value="">Todas as Carteiras</MenuItem>
-            {books.map((b) => (
-              <MenuItem key={b.id} value={b.id}>
-                {b.name}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setIsTradeModalOpen(true)}
-            disabled={!books.length && !selectedBookId}
-            sx={{ fontWeight: 700 }}
-          >
-            Novo Trade
-          </Button>
-        </Box>
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: 800, color: "primary.dark" }}
+        >
+          Registro de Trades (Boletas)
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Acompanhamento das operações cambiais executadas e status de cobertura
+        </Typography>
       </Box>
 
-      <TradesDataGrid
-        trades={trades}
-        loading={loading}
-        onOpenHedgeModal={(trade) => {
-          setSelectedTradeForHedge(trade);
-          setIsHedgeModalOpen(true);
-        }}
-      />
+      <Paper variant="outlined">
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>Carteira (Book)</TableCell>
+                {/* Colunas separadas para Posição e Par */}
+                <TableCell sx={{ fontWeight: 700 }}>Posição</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Par</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Volume Notional</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Taxa (Entry)</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Data / Hora</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>
+                  Status de Proteção
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700 }} align="right">
+                  MtM (PnL)
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    Carregando operações...
+                  </TableCell>
+                </TableRow>
+              ) : trades.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    Nenhum Trade registrado até o momento.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                trades.map((t) => {
+                  const isHedged = t.hedgedVolume >= t.volume;
+                  const isPartiallyHedged =
+                    t.hedgedVolume > 0 && t.hedgedVolume < t.volume;
+                  const hedgePct =
+                    t.volume > 0 ? (t.hedgedVolume / t.volume) * 100 : 0;
 
-      <TradeFormModal
-        open={isTradeModalOpen}
-        bookId={selectedBookId || (books[0]?.id ?? "")}
-        onClose={() => setIsTradeModalOpen(false)}
-        onSubmit={handleCreateTrade}
-      />
+                  return (
+                    <TableRow key={t.id} hover>
+                      <TableCell sx={{ fontWeight: 500 }}>
+                        {t.bookName}
+                      </TableCell>
 
-      <HedgeFormModal
-        open={isHedgeModalOpen}
-        trade={selectedTradeForHedge}
-        onClose={() => setIsHedgeModalOpen(false)}
-        onSubmit={handleCreateHedge}
-      />
+                      {/* Célula 1: Posição (Compra/Venda) com cores de baixa saturação */}
+                      <TableCell>
+                        <Chip
+                          label={t.side}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            borderRadius: 1,
+                            backgroundColor:
+                              t.side === "Compra"
+                                ? "rgba(101, 165, 108, 0.51)" // Verde claro/transparente
+                                : "rgba(161, 72, 72, 0.27)", // Vermelho claro/transparente
+                            color:
+                              t.side === "Compra"
+                                ? "success.white"
+                                : "success.black",
+                          }}
+                        />
+                      </TableCell>
 
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-      >
-        <Alert severity={toast.severity}>{toast.message}</Alert>
-      </Snackbar>
+                      {/* Célula 2: Par de moedas */}
+                      <TableCell
+                        sx={{ fontWeight: 600, color: "text.secondary" }}
+                      >
+                        {t.currencyPair}
+                      </TableCell>
+
+                      <TableCell sx={{ fontWeight: 700 }}>
+                        {formatCurrency(
+                          t.volume,
+                          t.currencyPair.substring(0, 3),
+                        )}
+                      </TableCell>
+                      <TableCell>R$ {formatFxRate(t.entryRate)}</TableCell>
+                      <TableCell>{formatDate(t.tradeDate)}</TableCell>
+                      <TableCell>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          <Box sx={{ width: "100%", maxWidth: 80 }}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={Math.min(hedgePct, 100)}
+                              color={
+                                isHedged
+                                  ? "success"
+                                  : isPartiallyHedged
+                                    ? "warning"
+                                    : "error"
+                              }
+                            />
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {Math.round(hedgePct)}%
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          fontWeight: 700,
+                          color:
+                            t.unrealizedPnL >= 0
+                              ? "success.main"
+                              : "error.main",
+                        }}
+                      >
+                        {t.unrealizedPnL >= 0 ? "+" : ""}
+                        {formatCurrency(t.unrealizedPnL, "BRL")}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
     </Container>
   );
 }

@@ -9,7 +9,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { BooksService } from './books.service';
+import { BooksService, BookSummary } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { Book } from './entities/book.entity';
@@ -37,7 +37,7 @@ export class BooksController {
     description: 'Lista de carteiras retornada com sucesso.',
     type: [Book],
   })
-  async findAll(): Promise<Book[]> {
+  async findAll(): Promise<BookSummary[]> {
     return this.booksService.findAll();
   }
 

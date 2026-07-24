@@ -1,4 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { RiskHealthStatus } from '../enums/risk-status.enum';
 
 export class TradeRiskDetailDto {
   @ApiProperty({
@@ -63,6 +64,27 @@ export class TradeRiskDetailDto {
   unrealizedPnl!: number;
 }
 
+export class RiskSuggestedActionDto {
+  @ApiProperty({
+    description: 'Ação Recomendada',
+    enum: ['BUY', 'SELL', 'HOLD'],
+    example: 'BUY',
+  })
+  action!: 'BUY' | 'SELL' | 'HOLD';
+
+  @ApiProperty({
+    description: 'Moeda alvo da ação',
+    example: 'USD',
+  })
+  targetCurrency!: string;
+
+  @ApiProperty({
+    description: 'Volume financeiro sugerido',
+    example: 100000,
+  })
+  amount!: number;
+}
+
 export class RiskReportResponseDto {
   @ApiProperty({
     description: 'UUID do Book analisado',
@@ -95,17 +117,24 @@ export class RiskReportResponseDto {
   overallHedgeRatioPercent!: number;
 
   @ApiProperty({
-    description: 'Classificação da saúde financeira do Book',
-    enum: ['HEALTHY', 'WARNING', 'CRITICAL'],
-    example: 'WARNING',
+    description: 'Exposição Total da Carteira',
+    example: 400000,
   })
-  healthStatus!: 'HEALTHY' | 'WARNING' | 'CRITICAL';
+  netExposure!: number;
 
   @ApiProperty({
-    description: 'Orientação automática do Motor de Risco',
-    example: 'Compre mais $100.000,00 para atingir a meta de 80% de cobertura.',
+    description: 'Classificação da saúde financeira do Book',
+    enum: RiskHealthStatus,
+    example: RiskHealthStatus.Warning,
   })
-  suggestedAction!: string;
+  healthStatus!: RiskHealthStatus;
+
+  @ApiPropertyOptional({
+    description:
+      'Objeto com a ação corretiva sugerida pelo Motor de Risco (estruturado)',
+    type: RiskSuggestedActionDto,
+  })
+  suggestedAction?: RiskSuggestedActionDto;
 
   @ApiProperty({
     description: 'PnL consolidado não realizado da carteira',

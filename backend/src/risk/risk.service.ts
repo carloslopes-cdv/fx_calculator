@@ -2,11 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Book } from '../books/entities/book.entity';
-import { MarketDataService } from '../market-data/market-data.service';
+import { RiskHealthStatus } from './enums/risk-status.enum';
 import {
   RiskReportResponseDto,
   TradeRiskDetailDto,
+  RiskSuggestedActionDto,
 } from './dto/risk-response.dto';
+import { MarketDataService } from 'src/market-data/market-data.service';
 
 @Injectable()
 export class RiskService {
@@ -91,33 +93,38 @@ export class RiskService {
         ? (totalHedgedVolume / totalExposedVolume) * 100
         : 0;
 
-    // Regra do Semáforo de Risco (80% Target)
-    let healthStatus: 'HEALTHY' | 'WARNING' | 'CRITICAL' = 'HEALTHY';
-    let suggestedAction = 'Carteira bem protegida (acima da meta de 80%).';
+    // 📐 CÁLCULO DA EXPOSIÇÃO LÍQUIDA AQUI
+    const totalNetExposure = Math.max(
+      0,
+      totalExposedVolume - totalHedgedVolume,
+    );
 
-    if (overallHedgeRatioPercent < 50) {
-      healthStatus = 'CRITICAL';
+    // Regra do Semáforo de Risco (80% Target)
+    let healthStatus: RiskHealthStatus = RiskHealthStatus.Healthy;
+    let suggestedAction: RiskSuggestedActionDto | undefined = undefined;
+
+    if (overallHedgeRatioPercent < 80) {
       const targetHedged = totalExposedVolume * 0.8;
       const neededHedge = targetHedged - totalHedgedVolume;
-      suggestedAction = `Ação Urgente: Compre mais $${neededHedge.toLocaleString(
-        'pt-BR',
-        { minimumFractionDigits: 2 },
-      )} para atingir a meta de 80% de cobertura.`;
-    } else if (overallHedgeRatioPercent < 80) {
-      healthStatus = 'WARNING';
-      const targetHedged = totalExposedVolume * 0.8;
-      const neededHedge = targetHedged - totalHedgedVolume;
-      suggestedAction = `Atenção: Compre mais $${neededHedge.toLocaleString(
-        'pt-BR',
-        { minimumFractionDigits: 2 },
-      )} para atingir a meta de 80% de cobertura.`;
+
+      healthStatus =
+        overallHedgeRatioPercent < 50
+          ? RiskHealthStatus.Critical
+          : RiskHealthStatus.Warning;
+
+      suggestedAction = {
+        action: 'BUY',
+        targetCurrency: 'USD',
+        amount: Number(neededHedge.toFixed(2)),
+      };
     }
 
     return {
       bookId: book.id,
       bookName: book.name,
-      totalExposedVolume,
-      totalHedgedVolume,
+      totalExposedVolume: Number(totalExposedVolume.toFixed(2)),
+      totalHedgedVolume: Number(totalHedgedVolume.toFixed(2)),
+      netExposure: Number(totalNetExposure.toFixed(2)), // <-- INJETADO NO RETORNO
       overallHedgeRatioPercent: Number(overallHedgeRatioPercent.toFixed(2)),
       healthStatus,
       suggestedAction,
