@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Container,
-  Box,
-  Typography,
-  Button,
-  Snackbar,
-  Alert,
-} from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import { Container, Box, Typography, Snackbar, Alert } from "@mui/material";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import ShieldIcon from "@mui/icons-material/Shield";
@@ -37,11 +28,16 @@ import {
   HedgeFormModal,
   CreateHedgeFormData,
 } from "@/components/organisms/HedgeFormModal";
+import { PrimaryActionButton } from "@/components/atoms/buttons/PrimaryActionButton";
+import { RefreshButton } from "@/components/atoms/buttons/RefreshButton";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [simulating, setSimulating] = useState<boolean>(false);
   const [currentBookId, setCurrentBookId] = useState<string>("");
+  const [availableBooks, setAvailableBooks] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   const [currentFxRate, setCurrentFxRate] = useState<number>(5.2);
   const [simulatedRate, setSimulatedRate] = useState<number | undefined>(
@@ -94,6 +90,14 @@ export default function DashboardPage() {
         // A. Busca ou Cria Carteira (Tipado como Book[])
         const booksResponse = await client.get({ url: "/api/books" });
         const booksList = (booksResponse.data as Book[]) || [];
+
+        setAvailableBooks(
+          booksList.map((b) => {
+            const obj = b as Record<string, unknown>;
+            return { id: String(obj.id || ""), name: String(obj.name || "") };
+          }),
+        );
+
         let book = booksList[0];
 
         if (!book) {
@@ -147,6 +151,7 @@ export default function DashboardPage() {
             const mappedTrades: TradeItem[] = tradesList.map((t) => {
               // Cast seguro para acessar as propriedades sem usar 'any'
               const tradeObj = t as Record<string, unknown>;
+              const bookObj = (tradeObj.book as Record<string, unknown>) || {};
               const volume = Number(tradeObj.volume || 0);
               const entryRate = Number(tradeObj.entryRate || 0);
 
@@ -168,6 +173,7 @@ export default function DashboardPage() {
 
               return {
                 id: String(tradeObj.id || ""),
+                bookName: String(bookObj.name || "Carteira não informada"),
                 side: (tradeObj.side as "BUY" | "SELL") || "BUY",
                 currencyPair: String(tradeObj.currencyPair || "USDBRL"),
                 volume,
@@ -222,7 +228,7 @@ export default function DashboardPage() {
         url: "/api/trades",
         body: data,
       });
-      showToast("Operação cambial (Trade) boletada com sucesso!", "success");
+      showToast("Operação cambial boletada com sucesso!", "success");
       fetchDashboardData(simulatedRate);
     } catch (error: unknown) {
       const err = error as { body?: { message?: string } };
@@ -256,7 +262,13 @@ export default function DashboardPage() {
   };
 
   const handleExecuteSuggestedAction = () => {
-    setIsTradeModalOpen(true);
+    document
+      .getElementById("trades-grid-section")
+      ?.scrollIntoView({ behavior: "smooth" });
+    showToast(
+      "Selecione uma operação (Trade) desprotegida na tabela e clique no botão 'Hedge' para adicionar cobertura.",
+      "info",
+    );
   };
 
   return (
@@ -285,25 +297,16 @@ export default function DashboardPage() {
         </Box>
 
         <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            startIcon={<RefreshIcon />}
-            onClick={() => fetchDashboardData(simulatedRate)}
-            disabled={loading}
-          >
-            Atualizar
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
+          <RefreshButton
+            onRefresh={() => fetchDashboardData(simulatedRate)}
+            loading={loading}
+          />
+          <PrimaryActionButton
             onClick={() => setIsTradeModalOpen(true)}
             disabled={loading || !currentBookId}
-            sx={{ fontWeight: 700 }}
           >
             Novo Trade
-          </Button>
+          </PrimaryActionButton>
         </Box>
       </Box>
 
@@ -380,7 +383,7 @@ export default function DashboardPage() {
       </Box>
 
       {/* 5. TABELA DE OPERAÇÕES (TRADES DATA GRID) */}
-      <Box sx={{ mb: 3 }}>
+      <Box id="trades-grid-section" sx={{ mb: 3 }}>
         <TradesDataGrid
           trades={trades}
           loading={loading}
@@ -391,7 +394,8 @@ export default function DashboardPage() {
       {/* --- MODAIS DE AÇÃO --- */}
       <TradeFormModal
         open={isTradeModalOpen}
-        bookId={currentBookId}
+        books={availableBooks}
+        defaultBookId={currentBookId}
         onClose={() => setIsTradeModalOpen(false)}
         onSubmit={handleCreateTrade}
       />

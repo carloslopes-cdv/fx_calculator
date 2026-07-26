@@ -11,7 +11,7 @@ import {
   Skeleton,
   Button,
 } from "@mui/material";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import ShieldIcon from "@mui/icons-material/Shield";
 import { RiskBadge, RiskHealthStatus } from "../atoms/RiskBadge";
 import { CoverageProgressBar } from "../molecules/CoverageProgressBar";
 import { formatCurrency } from "@/utils/formatters";
@@ -81,7 +81,7 @@ export const RiskReportCard: React.FC<RiskReportCardProps> = ({
                   color="inherit"
                   size="small"
                   variant="outlined"
-                  startIcon={<ShoppingCartIcon />}
+                  startIcon={<ShieldIcon />} // <-- Trocamos para o Escudo
                   onClick={() =>
                     onExecuteSuggestedAction(suggestedAction.amount)
                   }
@@ -90,27 +90,23 @@ export const RiskReportCard: React.FC<RiskReportCardProps> = ({
                     borderColor: "rgba(255, 255, 255, 0.5)",
                   }}
                 >
-                  Comprar
+                  Proteger Operações
                 </Button>
               )
             }
             sx={{ borderRadius: 2 }}
           >
             <AlertTitle sx={{ fontWeight: 700 }}>
-              Ação Sugerida de Rebalanceamento
+              Déficit de Cobertura Detectado
             </AlertTitle>
-            A carteira necessita de uma operação de{" "}
-            <strong>
-              {suggestedAction.action === "BUY" ? "COMPRA" : "VENDA"}
-            </strong>{" "}
-            de{" "}
+            A carteira necessita de mais{" "}
             <strong>
               {formatCurrency(
                 suggestedAction.amount,
                 suggestedAction.targetCurrency || "USD",
               )}
             </strong>{" "}
-            para atingir a cobertura mínima de segurança.
+            em contratos de proteção (Hedges) para atingir a zona de segurança.
           </Alert>
         )}
       </CardContent>

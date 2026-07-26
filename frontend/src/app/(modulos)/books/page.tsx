@@ -1,93 +1,137 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Container,
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Snackbar,
-  Alert,
-} from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import { client } from "@/utils/api";
+import { Container, Box, Typography } from "@mui/material";
+import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
-import type { Book } from "@/api-client";
+import { client } from "@/utils/api";
+import { formatDate } from "@/utils/formatters";
+import { PrimaryActionButton } from "@/components/atoms/buttons/PrimaryActionButton";
+import { RefreshButton } from "@/components/atoms/buttons/RefreshButton";
+import { FormattedCurrency } from "@/components/atoms/FormattedCurrency";
+import {
+  BookFormModal,
+  CreateBookFormData,
+} from "@/components/organisms/BookFormModal";
+import { AppDataTable } from "@/components/organisms/AppDataTable";
+
+type MappedBook = {
+  id: string;
+  name: string;
+  totalVolume: number;
+  netExposure: number;
+  createdAt: string;
+};
 
 export default function BooksPage() {
-  const [books, setBooks] = useState<Book[]>([]);
+  const [books, setBooks] = useState<MappedBook[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [newBookName, setNewBookName] = useState<string>("");
-  const [toast, setToast] = useState({
-    open: false,
-    message: "",
-    severity: "success" as "success" | "error",
-  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchBooks = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await client.get({ url: "/api/books" });
+      const res = await client.get({ url: "/api/books" });
+      const booksList = (res.data as Record<string, unknown>[]) || [];
 
-      const data = (response.data as Book[]) || [];
-      setBooks(data);
-    } catch {
-      setToast({
-        open: true,
-        message: "Erro ao carregar carteiras.",
-        severity: "error",
-      });
+      const mapped: MappedBook[] = booksList.map((b) => ({
+        id: String(b.id || ""),
+        name: String(b.name || ""),
+        totalVolume: Number(b.totalVolume || 0),
+        netExposure: Number(b.netExposure || 0),
+        createdAt: String(
+          b.createdAt || b.created_at || new Date().toISOString(),
+        ),
+      }));
+
+      setBooks(mapped);
+    } catch (err) {
+      console.error("Erro ao carregar books:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       void fetchBooks();
     }, 0);
 
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [fetchBooks]);
 
-  const handleCreateBook = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!newBookName.trim()) return;
-
+  const handleCreateBook = async (data: CreateBookFormData) => {
     try {
-      await client.post({
-        url: "/api/books",
-        body: { name: newBookName },
-      });
-      setToast({
-        open: true,
-        message: "Carteira criada com sucesso!",
-        severity: "success",
-      });
-      setNewBookName("");
-      setIsModalOpen(false);
-      fetchBooks();
-    } catch {
-      setToast({
-        open: true,
-        message: "Erro ao criar carteira.",
-        severity: "error",
-      });
+      await client.post({ url: "/api/books", body: data });
+      void fetchBooks();
+    } catch (error) {
+      console.error("Erro ao criar book", error);
     }
   };
+
+  const columns: GridColDef<MappedBook>[] = [
+    {
+      field: "id",
+      headerName: "ID",
+      flex: 0.8,
+      minWidth: 100,
+      renderCell: (params: GridRenderCellParams<MappedBook, string>) => (
+        <Typography
+          variant="body2"
+          sx={{ fontFamily: "monospace", color: "text.secondary" }}
+        >
+          #{params.value?.slice(0, 6)}
+        </Typography>
+      ),
+    },
+    {
+      field: "name",
+      headerName: "Nome da Carteira",
+      flex: 1.5,
+      minWidth: 180,
+      renderCell: (params: GridRenderCellParams<MappedBook, string>) => (
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          {params.value}
+        </Typography>
+      ),
+    },
+    {
+      field: "totalVolume",
+      headerName: "Volume Total (USD)",
+      flex: 1.2,
+      minWidth: 150,
+      renderCell: (params: GridRenderCellParams<MappedBook, number>) => (
+        <FormattedCurrency value={params.value || 0} currency="USD" />
+      ),
+    },
+    {
+      field: "netExposure",
+      headerName: "Exposição Desprotegida",
+      flex: 1.2,
+      minWidth: 160,
+      renderCell: (params: GridRenderCellParams<MappedBook, number>) => (
+        <Box
+          sx={{
+            color: (params.value || 0) > 0 ? "error.main" : "success.main",
+            fontWeight: 700,
+          }}
+        >
+          <FormattedCurrency value={params.value || 0} currency="USD" />
+        </Box>
+      ),
+    },
+    {
+      field: "createdAt",
+      headerName: "Data de Criação",
+      flex: 1,
+      minWidth: 130,
+      renderCell: (params: GridRenderCellParams<MappedBook, string>) => (
+        <Typography variant="body2" color="text.secondary">
+          {formatDate(params.value)}
+        </Typography>
+      ),
+    },
+  ];
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -104,115 +148,27 @@ export default function BooksPage() {
             variant="h4"
             sx={{ fontWeight: 800, color: "primary.light" }}
           >
-            Carteiras de Tesouraria (Books)
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Gerenciamento de unidades de alocação de risco e limites
-            operacionais
+            Registro de Books
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setIsModalOpen(true)}
-          sx={{ fontWeight: 700 }}
-        >
-          Nova Carteira
-        </Button>
+        <Box sx={{ display: "flex", gap: 1.5 }}>
+          <RefreshButton onRefresh={fetchBooks} loading={loading} />
+          <PrimaryActionButton
+            onClick={() => setIsModalOpen(true)}
+            disabled={loading}
+          >
+            Nova Carteira
+          </PrimaryActionButton>
+        </Box>
       </Box>
 
-      <Paper variant="outlined">
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>ID da Carteira</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Nome da Carteira</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Data de Criação</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={3} align="center">
-                    Carregando carteiras...
-                  </TableCell>
-                </TableRow>
-              ) : books.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} align="center">
-                    Nenhuma carteira encontrada.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                books.map((b) => {
-                  // 1. Extraímos as chaves garantindo os tipos primitivos
-                  const bookObj = b as Record<string, unknown>;
-                  const id = String(bookObj.id || "");
-                  const name = String(bookObj.name || "");
-                  const createdAt = bookObj.createdAt as string | undefined;
+      <AppDataTable rows={books} columns={columns} loading={loading} />
 
-                  // 2. Usamos as variáveis tratadas ('id', 'name', 'createdAt') no JSX
-                  return (
-                    <TableRow key={id} hover>
-                      <TableCell sx={{ fontFamily: "monospace" }}>
-                        #{id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{name}</TableCell>
-                      <TableCell color="text.secondary">
-                        {createdAt
-                          ? new Date(createdAt).toLocaleDateString("pt-BR")
-                          : "---"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-
-      {/* Modal de Criação */}
-      <Dialog
+      <BookFormModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          Nova Carteira de Tesouraria
-        </DialogTitle>
-        <Box component="form" onSubmit={handleCreateBook}>
-          <DialogContent>
-            <TextField
-              label="Nome da Carteira"
-              placeholder="Ex: Book de Derivativos USD"
-              value={newBookName}
-              onChange={(e) => setNewBookName(e.target.value)}
-              fullWidth
-              required
-              autoFocus
-            />
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setIsModalOpen(false)} color="inherit">
-              Cancelar
-            </Button>
-            <Button type="submit" variant="contained">
-              Criar Book
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-      >
-        <Alert severity={toast.severity}>{toast.message}</Alert>
-      </Snackbar>
+        onSubmit={handleCreateBook}
+      />
     </Container>
   );
 }

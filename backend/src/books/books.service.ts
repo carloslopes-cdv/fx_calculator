@@ -12,6 +12,7 @@ export interface BookSummary {
   hedgedVolume: number;
   netExposure: number;
   unrealizedPnL: number;
+  createdAt?: string | Date;
 }
 
 @Injectable()
@@ -64,6 +65,7 @@ export class BooksService {
         hedgedVolume,
         netExposure,
         unrealizedPnL,
+        createdAt: book.createdAt,
       };
     });
   }
