@@ -1,69 +1,65 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Typography,
-  LinearProgress,
-  linearProgressClasses,
-} from "@mui/material";
-import { formatPercent } from "@/utils/formatters";
+import { Box, Typography, LinearProgress } from "@mui/material";
 
 interface CoverageProgressBarProps {
   percentage: number;
-  target?: number;
 }
 
 export const CoverageProgressBar: React.FC<CoverageProgressBarProps> = ({
-  percentage,
-  target = 80,
+  percentage = 0,
 }) => {
-  const clampedValue = Math.min(Math.max(percentage, 0), 100);
-
-  const getProgressColor = () => {
-    if (percentage >= target) return "#10b981";
-    if (percentage >= 50) return "#f59e0b";
-    return "#ef4444";
+  // Lógica para cor dinâmica baseada na saúde da cobertura
+  const getColor = (val: number) => {
+    if (val >= 80) return "success.main";
+    if (val >= 50) return "warning.main";
+    return "error.main";
   };
 
-  const progressColor = getProgressColor();
+  const safePercentage = Math.min(Math.max(percentage, 0), 100);
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      {/* Cabeçalho da Barra com o Valor em Grande Destaque */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          mb: 0.5,
+          alignItems: "baseline",
         }}
       >
         <Typography
           variant="body2"
-          color="text.secondary"
-          sx={{ fontWeight: 600 }}
+          sx={{ fontWeight: 700, color: "text.secondary" }}
         >
-          Índice de Cobertura (Hedge Ratio)
+          Índice de Cobertura
         </Typography>
+
+        {/* 🚀 VALOR PERCENTUAL GRANDE E DESTACADO */}
         <Typography
-          variant="body2"
-          sx={{ color: progressColor, fontWeight: 700 }}
+          variant="h4"
+          sx={{
+            fontWeight: 900,
+            color: getColor(safePercentage),
+            fontVariantNumeric: "tabular-nums",
+            lineHeight: 1,
+          }}
         >
-          {formatPercent(percentage)} (Meta: {target}%)
+          {safePercentage.toFixed(1)}%
         </Typography>
       </Box>
 
+      {/* Barra visual de progresso */}
       <LinearProgress
         variant="determinate"
-        value={clampedValue}
+        value={safePercentage}
         sx={{
           height: 10,
           borderRadius: 5,
-          [`&.${linearProgressClasses.colorPrimary}`]: {
-            backgroundColor: "rgba(255, 255, 255, 0.08)",
-          },
-          [`& .${linearProgressClasses.bar}`]: {
-            backgroundColor: progressColor,
+          backgroundColor: "rgba(255, 255, 255, 0.08)",
+          "& .MuiLinearProgress-bar": {
+            backgroundColor: getColor(safePercentage),
             borderRadius: 5,
           },
         }}

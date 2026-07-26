@@ -12,7 +12,7 @@ import {
   Button,
 } from "@mui/material";
 import ShieldIcon from "@mui/icons-material/Shield";
-import { RiskBadge, RiskHealthStatus } from "../atoms/RiskBadge";
+import { RiskHealthStatus } from "../atoms/RiskBadge";
 import { CoverageProgressBar } from "../molecules/CoverageProgressBar";
 import { formatCurrency } from "@/utils/formatters";
 
@@ -58,13 +58,12 @@ export const RiskReportCard: React.FC<RiskReportCardProps> = ({
         >
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Status de Risco da Carteira
+              Status da Carteira
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Motor de Risco em Tempo Real (Target: 80% Cobertura)
+              Motor de Risco em Tempo Real
             </Typography>
           </Box>
-          <RiskBadge status={health} />
         </Box>
 
         {/* Barra de Progresso do Hedge Ratio */}

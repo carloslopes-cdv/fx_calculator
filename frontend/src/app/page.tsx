@@ -291,9 +291,6 @@ export default function DashboardPage() {
           >
             Gestão de Risco Cambial
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Treasury FX Risk Dashboard & Mark-to-Market Engine
-          </Typography>
         </Box>
 
         <Box sx={{ display: "flex", gap: 1.5 }}>
@@ -336,7 +333,7 @@ export default function DashboardPage() {
           loading={loading}
         />
         <MetricCard
-          title="Volume Coberto (Hedge)"
+          title="Volume de Hedges"
           value={formatCurrency(metrics.hedgedVolume, "USD")}
           subtitle="Proteção ativa no mercado"
           icon={<ShieldIcon />}
@@ -345,7 +342,7 @@ export default function DashboardPage() {
 
         {/* NOVO CARD: Exposição Líquida */}
         <MetricCard
-          title="Exposição Líquida (Risco)"
+          title="Exposição Líquida"
           value={formatCurrency(metrics.netExposure, "USD")}
           subtitle="Volume desprotegido a mercado"
           icon={<WarningAmberIcon color="warning" />}
@@ -353,7 +350,7 @@ export default function DashboardPage() {
         />
 
         <MetricCard
-          title="Marcação a Mercado (MtM / PnL)"
+          title="Marcação a Mercado (MTM)"
           value={
             <FormattedCurrency
               value={metrics.unrealizedPnL}
