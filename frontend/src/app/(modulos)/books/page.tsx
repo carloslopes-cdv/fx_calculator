@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Container, Box, Typography } from "@mui/material";
+import { Container, Box, Typography, IconButton, Tooltip } from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { client } from "@/utils/api";
@@ -14,6 +15,7 @@ import {
   CreateBookFormData,
 } from "@/components/organisms/BookFormModal";
 import { AppDataTable } from "@/components/organisms/AppDataTable";
+import { ConfirmDeleteDialog } from "@/components/molecules/ConfirmDeleteDialog";
 
 type MappedBook = {
   id: string;
@@ -27,6 +29,10 @@ export default function BooksPage() {
   const [books, setBooks] = useState<MappedBook[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Estados para exclusão de carteira
+  const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
+  const [isDeletingBook, setIsDeletingBook] = useState(false);
 
   const fetchBooks = useCallback(async () => {
     setLoading(true);
@@ -66,6 +72,25 @@ export default function BooksPage() {
       void fetchBooks();
     } catch (error) {
       console.error("Erro ao criar book", error);
+    }
+  };
+
+  const handleOpenDeleteConfirm = (id: string) => {
+    setDeleteBookId(id);
+  };
+
+  const handleConfirmDeleteBook = async () => {
+    if (!deleteBookId) return;
+
+    setIsDeletingBook(true);
+    try {
+      await client.delete({ url: `/api/books/${deleteBookId}` });
+      void fetchBooks();
+    } catch (error) {
+      console.error("Erro ao excluir carteira:", error);
+    } finally {
+      setIsDeletingBook(false);
+      setDeleteBookId(null);
     }
   };
 
@@ -131,6 +156,28 @@ export default function BooksPage() {
         </Typography>
       ),
     },
+    {
+      field: "actions",
+      headerName: "Ações",
+      flex: 0.5,
+      minWidth: 80,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams<MappedBook>) => (
+        <Tooltip title="Excluir Carteira">
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => handleOpenDeleteConfirm(params.row.id)}
+            sx={{
+              border: "1px solid rgba(244, 67, 54, 0.4)",
+              backgroundColor: "rgba(244, 67, 54, 0.04)",
+            }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
   ];
 
   return (
@@ -163,6 +210,15 @@ export default function BooksPage() {
       </Box>
 
       <AppDataTable rows={books} columns={columns} loading={loading} />
+
+      <ConfirmDeleteDialog
+        open={Boolean(deleteBookId)}
+        title="Excluir Carteira"
+        description="Deseja realmente excluir esta carteira de tesouraria? Certifique-se de que não existem operações ativas atreladas a ela."
+        loading={isDeletingBook}
+        onClose={() => setDeleteBookId(null)}
+        onConfirm={handleConfirmDeleteBook}
+      />
 
       <BookFormModal
         open={isModalOpen}

@@ -23,6 +23,7 @@ import {
   HedgeFormModal,
   CreateHedgeFormData,
 } from "@/components/organisms/HedgeFormModal";
+import { ConfirmDeleteDialog } from "@/components/molecules/ConfirmDeleteDialog";
 
 // Taxa spot de referência do mercado para o cálculo do MtM (Mark-to-Market)
 const CURRENT_MARKET_RATE = 5.2;
@@ -30,6 +31,8 @@ const CURRENT_MARKET_RATE = 5.2;
 export default function TradesPage() {
   const [trades, setTrades] = useState<TradeItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
+  const [isDeletingTrade, setIsDeletingTrade] = useState(false);
 
   // Modais
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
@@ -139,6 +142,25 @@ export default function TradesPage() {
     setIsHedgeModalOpen(true);
   };
 
+  const handleOpenDeleteConfirm = (id: string) => {
+    setDeleteTradeId(id);
+  };
+
+  const handleConfirmDeleteTrade = async () => {
+    if (!deleteTradeId) return;
+
+    setIsDeletingTrade(true);
+    try {
+      await client.delete({ url: `/api/trades/${deleteTradeId}` });
+      void fetchTrades(); // Atualiza a tela automaticamente
+    } catch (error) {
+      console.error("Erro ao excluir trade:", error);
+    } finally {
+      setIsDeletingTrade(false);
+      setDeleteTradeId(null); // Esconde o modal ao finalizar
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Box
@@ -173,6 +195,16 @@ export default function TradesPage() {
         trades={trades}
         loading={loading}
         onOpenHedgeModal={handleOpenHedgeModal}
+        onDeleteTrade={handleOpenDeleteConfirm}
+      />
+
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTradeId)}
+        title="Excluir Carteira"
+        description="Deseja realmente excluir esta operação de câmbio? A exclusão impactará os relatórios de exposição da tesouraria."
+        loading={isDeletingTrade}
+        onClose={() => setDeleteTradeId(null)}
+        onConfirm={handleConfirmDeleteTrade}
       />
 
       <TradeFormModal

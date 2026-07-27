@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Container, Box, Typography } from "@mui/material";
+import { Container, Box, Typography, IconButton, Tooltip } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 // import ShieldIcon from "@mui/icons-material/Shield";
 
@@ -12,6 +12,8 @@ import { RefreshButton } from "@/components/atoms/buttons/RefreshButton";
 import { FormattedCurrency } from "@/components/atoms/FormattedCurrency";
 import { AppDataTable } from "@/components/organisms/AppDataTable";
 import { SideChip } from "@/components/atoms/SideChip";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import { ConfirmDeleteDialog } from "@/components/molecules/ConfirmDeleteDialog";
 
 type MappedHedge = {
   id: string;
@@ -26,6 +28,8 @@ type MappedHedge = {
 export default function HedgesPage() {
   const [hedges, setHedges] = useState<MappedHedge[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [deleteHedgeId, setDeleteHedgeId] = useState<string | null>(null);
+  const [isDeletingHedge, setIsDeletingHedge] = useState(false);
 
   const fetchHedges = useCallback(async () => {
     setLoading(true);
@@ -63,6 +67,26 @@ export default function HedgesPage() {
 
     return () => window.clearTimeout(timer);
   }, [fetchHedges]);
+
+  const handleOpenDeleteConfirm = (id: string) => {
+    setDeleteHedgeId(id);
+  };
+
+  // 3. Função para confirmar a exclusão
+  const handleConfirmDeleteHedge = async () => {
+    if (!deleteHedgeId) return;
+
+    setIsDeletingHedge(true);
+    try {
+      await client.delete({ url: `/api/hedges/${deleteHedgeId}` });
+      void fetchHedges(); // Atualiza a tabela na hora
+    } catch (error) {
+      console.error("Erro ao excluir hedge:", error);
+    } finally {
+      setIsDeletingHedge(false);
+      setDeleteHedgeId(null);
+    }
+  };
 
   // COLUNAS SEPARADAS E ALINHADAS COM O PADRÃO DO SISTEMA
   const columns: GridColDef<MappedHedge>[] = [
@@ -131,6 +155,28 @@ export default function HedgesPage() {
         </Typography>
       ),
     },
+    {
+      field: "actions",
+      headerName: "Ações",
+      flex: 0.5,
+      minWidth: 80,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams) => (
+        <Tooltip title="Excluir Proteção">
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => handleOpenDeleteConfirm(String(params.row.id))}
+            sx={{
+              border: "1px solid rgba(244, 67, 54, 0.4)",
+              backgroundColor: "rgba(244, 67, 54, 0.04)",
+            }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
     // {
     //   field: "status",
     //   headerName: "Status",
@@ -171,6 +217,14 @@ export default function HedgesPage() {
       </Box>
 
       <AppDataTable rows={hedges} columns={columns} loading={loading} />
+      <ConfirmDeleteDialog
+        open={Boolean(deleteHedgeId)}
+        title="Cancelar Proteção"
+        description="Deseja realmente excluir esta operação de Hedge? O Trade atrelado voltará a ficar exposto ao risco cambial."
+        loading={isDeletingHedge}
+        onClose={() => setDeleteHedgeId(null)}
+        onConfirm={handleConfirmDeleteHedge}
+      />
     </Container>
   );
 }

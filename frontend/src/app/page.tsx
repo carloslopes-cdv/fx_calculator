@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+
 import { Container, Box, Typography, Snackbar, Alert } from "@mui/material";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
@@ -30,6 +31,7 @@ import {
 } from "@/components/organisms/HedgeFormModal";
 import { PrimaryActionButton } from "@/components/atoms/buttons/PrimaryActionButton";
 import { RefreshButton } from "@/components/atoms/buttons/RefreshButton";
+import { ConfirmDeleteDialog } from "@/components/molecules/ConfirmDeleteDialog";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
@@ -65,6 +67,8 @@ export default function DashboardPage() {
   const [isHedgeModalOpen, setIsHedgeModalOpen] = useState<boolean>(false);
   const [selectedTradeForHedge, setSelectedTradeForHedge] =
     useState<TradeItem | null>(null);
+  const [deleteTradeId, setDeleteTradeId] = useState<string | null>(null);
+  const [isDeletingTrade, setIsDeletingTrade] = useState(false);
 
   const [toast, setToast] = useState<{
     open: boolean;
@@ -87,7 +91,7 @@ export default function DashboardPage() {
     async (rateOverride?: number) => {
       setLoading(true);
       try {
-        // A. Busca ou Cria Carteira (Tipado como Book[])
+        // A. Busca ou Cria Carteira
         const booksResponse = await client.get({ url: "/api/books" });
         const booksList = (booksResponse.data as Book[]) || [];
 
@@ -114,42 +118,30 @@ export default function DashboardPage() {
         if (bookId) {
           setCurrentBookId(bookId);
 
-          // B. Consulta o Relatório de Risco
-          const riskUrl = `/api/risk/books/${bookId}`;
-
-          const riskResponse = await client.get({
-            url: riskUrl,
-            query: rateOverride ? { usdbrl: rateOverride } : undefined,
-          });
+          // 🚀 BUSCA PARALELA: Pega o Risco e os Trades ao mesmo tempo!
+          const [riskResponse, tradesResponse] = await Promise.all([
+            client.get({
+              url: `/api/risk/books/${bookId}`,
+              query: rateOverride ? { usdbrl: rateOverride } : undefined,
+            }),
+            client.get({ url: "/api/trades" }),
+          ]);
 
           const riskData = riskResponse.data as RiskReportResponseDto;
-
-          if (riskData) {
-            setMetrics({
-              totalVolume: riskData.totalExposedVolume, // (No backend isso é o Vol. Bruto)
-              hedgedVolume: riskData.totalHedgedVolume,
-              netExposure: riskData.netExposure || 0, // <-- LENDO A MÉTRICA NOVA DO BACKEND
-              unrealizedPnL: riskData.totalUnrealizedPnl,
-              coverageRatio: riskData.overallHedgeRatioPercent,
-              health: riskData.healthStatus,
-            });
-
-            const activeRate =
-              rateOverride || riskData.tradesDetails?.[0]?.marketRate || 5.2;
-            setCurrentFxRate(activeRate);
-
-            setSuggestedAction(riskData.suggestedAction || null);
-          }
-
-          // C. Busca Operações (Tipado como Trade[])
-          const tradesResponse = await client.get({ url: "/api/trades" });
           const tradesList = (tradesResponse.data as Trade[]) || [];
 
-          if (Array.isArray(tradesList)) {
-            const activeRate = rateOverride || currentFxRate || 5.2;
+          // Variável local para não depender do currentFxRate e evitar loop infinito
+          let activeRate = 5.2;
+          if (riskData) {
+            activeRate =
+              rateOverride || riskData.tradesDetails?.[0]?.marketRate || 5.2;
+          }
 
-            const mappedTrades: TradeItem[] = tradesList.map((t) => {
-              // Cast seguro para acessar as propriedades sem usar 'any'
+          // C. Mapeamento dos Trades
+          let mappedTrades: TradeItem[] = [];
+
+          if (Array.isArray(tradesList)) {
+            mappedTrades = tradesList.map((t) => {
               const tradeObj = t as Record<string, unknown>;
               const bookObj = (tradeObj.book as Record<string, unknown>) || {};
               const volume = Number(tradeObj.volume || 0);
@@ -163,7 +155,6 @@ export default function DashboardPage() {
                     : (entryRate - activeRate) * volume;
               }
 
-              // Trata o volume do array de hedges
               const hedgesArray =
                 (tradeObj.hedges as Record<string, unknown>[]) || [];
               const hedgedVolume = hedgesArray.reduce(
@@ -189,6 +180,38 @@ export default function DashboardPage() {
 
             setTrades(mappedTrades);
           }
+
+          // 🚀 O SEGREDO DA BARRA ESTÁ AQUI: Cálculo Local Dinâmico
+          // Somamos tudo da lista de trades que acabamos de receber!
+          const localTotalVol = mappedTrades.reduce(
+            (acc, t) => acc + t.volume,
+            0,
+          );
+          const localHedgedVol = mappedTrades.reduce(
+            (acc, t) => acc + (t.hedgedVolume || 0),
+            0,
+          );
+          const localRatio =
+            localTotalVol > 0 ? (localHedgedVol / localTotalVol) * 100 : 0;
+
+          let localHealth: "HEALTHY" | "WARNING" | "CRITICAL" = "HEALTHY";
+          if (localRatio < 50) localHealth = "CRITICAL";
+          else if (localRatio < 80) localHealth = "WARNING";
+
+          if (riskData) {
+            // Forçamos o uso dos volumes calculados localmente para refletir o novo trade NA HORA
+            setMetrics({
+              totalVolume: localTotalVol,
+              hedgedVolume: localHedgedVol,
+              netExposure: localTotalVol - localHedgedVol,
+              unrealizedPnL: riskData.totalUnrealizedPnl ?? 0,
+              coverageRatio: localRatio, // 👈 A Barra visual agora lê isso!
+              health: localHealth,
+            });
+
+            setCurrentFxRate(activeRate);
+            setSuggestedAction(riskData.suggestedAction || null);
+          }
         }
       } catch (error: unknown) {
         console.error("Erro ao carregar dados da tesouraria:", error);
@@ -198,7 +221,7 @@ export default function DashboardPage() {
         setSimulating(false);
       }
     },
-    [showToast, currentFxRate],
+    [showToast],
   );
 
   useEffect(() => {
@@ -215,7 +238,8 @@ export default function DashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [fetchDashboardData, simulatedRate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulatedRate]);
 
   const handleSimulateFx = (rate: number | undefined) => {
     setSimulating(true);
@@ -271,9 +295,29 @@ export default function DashboardPage() {
     );
   };
 
+  const handleOpenDeleteConfirm = (id: string) => {
+    setDeleteTradeId(id);
+  };
+
+  const handleConfirmDeleteTrade = async () => {
+    if (!deleteTradeId) return;
+
+    setIsDeletingTrade(true);
+    try {
+      await client.delete({ url: `/api/trades/${deleteTradeId}` });
+      showToast("Operação excluída com sucesso!", "success");
+      void fetchDashboardData(simulatedRate); // Atualiza os dados do dashboard
+    } catch (error) {
+      console.error("Erro ao excluir trade:", error);
+      showToast("Erro ao excluir a operação.", "error");
+    } finally {
+      setIsDeletingTrade(false);
+      setDeleteTradeId(null);
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* 1. CABEÇALHO DO DASHBOARD */}
       <Box
         sx={{
           display: "flex",
@@ -307,7 +351,6 @@ export default function DashboardPage() {
         </Box>
       </Box>
 
-      {/* 2. BARRA DE SIMULAÇÃO DE CÂMBIO */}
       <Box sx={{ mb: 3 }}>
         <FxRateSimulatorBar
           currentRate={currentFxRate}
@@ -316,7 +359,6 @@ export default function DashboardPage() {
         />
       </Box>
 
-      {/* 3. CARDS DE MÉTRICAS & PnL */}
       <Box
         sx={{
           display: "grid",
@@ -340,7 +382,6 @@ export default function DashboardPage() {
           loading={loading}
         />
 
-        {/* NOVO CARD: Exposição Líquida */}
         <MetricCard
           title="Exposição Líquida"
           value={formatCurrency(metrics.netExposure, "USD")}
@@ -368,7 +409,7 @@ export default function DashboardPage() {
           loading={loading}
         />
       </Box>
-      {/* 4. RELATÓRIO DO MOTOR DE RISCO (SEMÁFORO) */}
+
       <Box sx={{ mb: 3 }}>
         <RiskReportCard
           health={metrics.health}
@@ -379,16 +420,25 @@ export default function DashboardPage() {
         />
       </Box>
 
-      {/* 5. TABELA DE OPERAÇÕES (TRADES DATA GRID) */}
       <Box id="trades-grid-section" sx={{ mb: 3 }}>
         <TradesDataGrid
           trades={trades}
           loading={loading}
           onOpenHedgeModal={handleOpenHedgeModal}
+          onDeleteTrade={handleOpenDeleteConfirm} // 👈 Adicione esta linha
         />
       </Box>
 
-      {/* --- MODAIS DE AÇÃO --- */}
+      {/* 👇 Adicione o Modal de exclusão aqui */}
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTradeId)}
+        title="Excluir Operação"
+        description="Deseja realmente excluir esta operação de câmbio? A exclusão impactará os relatórios de exposição da tesouraria."
+        loading={isDeletingTrade}
+        onClose={() => setDeleteTradeId(null)}
+        onConfirm={handleConfirmDeleteTrade}
+      />
+
       <TradeFormModal
         open={isTradeModalOpen}
         books={availableBooks}
@@ -404,7 +454,6 @@ export default function DashboardPage() {
         onSubmit={handleCreateHedge}
       />
 
-      {/* SNACKBAR DE FEEDBACK */}
       <Snackbar
         open={toast.open}
         autoHideDuration={5000}

@@ -7,8 +7,9 @@ import { formatFxRate, formatDate } from "@/utils/formatters";
 import { TradeCoverageBar } from "../molecules/TradeCoverageBar";
 import { HedgeActionButton } from "../atoms/buttons/HedgeActionButton";
 import { AppDataTable } from "./AppDataTable";
-import { Typography, Tooltip } from "@mui/material";
+import { Typography, Tooltip, IconButton, Box } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 
 export interface TradeItem {
   id: string;
@@ -27,12 +28,14 @@ interface TradesDataGridProps {
   trades: TradeItem[];
   loading?: boolean;
   onOpenHedgeModal: (trade: TradeItem) => void;
+  onDeleteTrade?: (id: string) => void;
 }
 
 export const TradesDataGrid: React.FC<TradesDataGridProps> = ({
   trades,
   loading = false,
   onOpenHedgeModal,
+  onDeleteTrade,
 }) => {
   const columns: GridColDef<TradeItem>[] = [
     {
@@ -96,15 +99,25 @@ export const TradesDataGrid: React.FC<TradesDataGridProps> = ({
     },
     {
       field: "unrealizedPnL",
-      headerName: "MtM (PnL)",
-      flex: 1.1,
-      renderCell: (params: GridRenderCellParams<TradeItem, number>) => (
-        <FormattedCurrency
-          value={params.value || 0}
-          currency="BRL"
-          highlightPnL
-        />
-      ),
+      headerName: "MTM",
+      flex: 1.2,
+      renderCell: (params: GridRenderCellParams<TradeItem, number>) => {
+        const val = params.value || 0;
+        let textColor = "text.primary";
+        if (val > 0) textColor = "success.main";
+        if (val < 0) textColor = "error.main";
+
+        return (
+          <Box
+            sx={{
+              color: textColor,
+              fontWeight: 700,
+            }}
+          >
+            <FormattedCurrency value={val} currency="BRL" />
+          </Box>
+        );
+      },
     },
 
     {
@@ -139,28 +152,47 @@ export const TradesDataGrid: React.FC<TradesDataGridProps> = ({
       field: "actions",
       headerName: "Ações",
       flex: 1,
+      minWidth: 140,
       sortable: false,
       renderCell: (params: GridRenderCellParams<TradeItem>) => {
         const isFullyHedged =
           (params.row.hedgedVolume || 0) >= params.row.volume;
 
         return (
-          <Tooltip
-            title={
-              isFullyHedged
-                ? "Operação 100% protegida"
-                : "Vincular operação de Hedge para travar risco"
-            }
-          >
-            <span>
-              <HedgeActionButton
-                isFullyHedged={isFullyHedged}
-                onClick={() => onOpenHedgeModal(params.row)}
-              >
-                Proteger
-              </HedgeActionButton>
-            </span>
-          </Tooltip>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Tooltip
+              title={
+                isFullyHedged
+                  ? "Operação 100% protegida"
+                  : "Vincular operação de Hedge para travar risco"
+              }
+            >
+              <span>
+                <HedgeActionButton
+                  isFullyHedged={isFullyHedged}
+                  onClick={() => onOpenHedgeModal(params.row)}
+                >
+                  Proteger
+                </HedgeActionButton>
+              </span>
+            </Tooltip>
+
+            {onDeleteTrade && (
+              <Tooltip title="Excluir Operação">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => onDeleteTrade(params.row.id)}
+                  sx={{
+                    border: "1px solid rgba(244, 67, 54, 0.4)",
+                    backgroundColor: "rgba(244, 67, 54, 0.04)",
+                  }}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
         );
       },
     },
