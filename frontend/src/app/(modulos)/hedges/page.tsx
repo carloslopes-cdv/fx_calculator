@@ -210,7 +210,7 @@ export default function HedgesPage() {
             variant="h4"
             sx={{ fontWeight: 800, color: "primary.light" }}
           >
-            Hedges
+            Registro de Hedges
           </Typography>
         </Box>
         <RefreshButton onRefresh={fetchHedges} loading={loading} />
